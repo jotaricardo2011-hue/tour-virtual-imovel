@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tour Virtual · Casa de Alto Padrão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#111827;--bg2:#0b111d;--card:#1a2233;--line:#263045;--txt:#f3f4f6;--sub:#9ca3af;--ac:#D9B26F}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit;text-decoration:none}
+.app{display:flex;gap:24px;max-width:1180px;margin:0 auto;padding:24px 16px}
+.main{flex:1;min-width:0}
+.topo{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+.topo h1{font-size:20px;font-weight:600}
+.topo small{color:var(--sub);font-size:13px}
+
+/* chips de modo */
+.modos{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.chip{padding:7px 14px;border-radius:999px;border:1px solid var(--line);font-size:13px;color:var(--sub)}
+.chip.on{background:var(--ac);border-color:var(--ac);color:#111827;font-weight:600}
+
+/* visualizador */
+.viewer{position:relative;width:100%;aspect-ratio:800/540;border-radius:14px;overflow:hidden;background:var(--bg2);user-select:none}
+.viewer:fullscreen{border-radius:0;aspect-ratio:auto}
+.cena{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+.cena.arrastando{cursor:grabbing}
+.pano{position:absolute;inset:0;background-repeat:repeat-x;will-change:background-position}
+#pontos{position:absolute;inset:0;pointer-events:none}
+#pontos .hs{pointer-events:auto}
+.vr .cena{right:50%}
+.olho2{display:none;position:absolute;inset:0 0 0 50%;overflow:hidden}
+.vr .olho2{display:block}
+.vr .olho2::before,.vr .cena::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 60px 30px #000;border-radius:40%;pointer-events:none;z-index:3}
+.vr .hs{display:none}
+.dica{position:absolute;left:50%;top:16px;translate:-50% 0;background:rgba(0,0,0,.5);padding:7px 14px;border-radius:999px;font-size:12px;color:#e5e7eb;pointer-events:none;transition:opacity .4s;z-index:4}
+
+/* hotspots */
+.hs{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:var(--ac);border:3px solid #fff;z-index:2}
+.hs::after{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px solid var(--ac);animation:pulso 1.8s infinite}
+@keyframes pulso{0%{transform:scale(.6);opacity:1}100%{transform:scale(1.6);opacity:0}}
+.tip{position:absolute;z-index:5;width:230px;background:rgba(17,24,39,.96);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.45;color:var(--sub);box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.tip b{display:block;color:var(--txt);font-size:14px;margin-bottom:4px}
+
+/* barra inferior */
+.barra{position:absolute;left:12px;right:12px;bottom:12px;display:flex;align-items:center;gap:6px;background:rgba(11,17,29,.72);backdrop-filter:blur(8px);border-radius:12px;padding:6px 8px;z-index:6}
+.barra .nome{flex:1;text-align:center;font-weight:600;font-size:15px}
+.ib{width:38px;height:38px;border-radius:9px;display:grid;place-items:center}
+.ib:hover,.ib.on{background:rgba(255,255,255,.1)}
+.ib.on{color:var(--ac)}
+.ib svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mini{position:absolute;left:12px;bottom:68px;z-index:6;background:rgba(11,17,29,.92);border:1px solid var(--line);border-radius:12px;padding:10px;display:none}
+.mini.on{display:block}
+.mini small{display:block;color:var(--sub);font-size:11px;margin-top:6px;text-align:center}
+
+/* planta */
+.mapa{position:relative;display:block;line-height:0}
+.mapa img{width:100%;display:block;border-radius:8px}
+.mapa .area{position:absolute;border:2px solid transparent;border-radius:6px;cursor:pointer;transition:background .2s,border-color .2s}
+.mapa .area span{position:absolute;left:50%;top:50%;translate:-50% -50%;background:rgba(17,24,39,.85);color:#fff;font-size:11px;font-weight:600;padding:4px 9px;border-radius:999px;white-space:nowrap;line-height:1.2;opacity:.9}
+.mapa .area.on span{background:var(--ac);color:#111827}
+.mini .mapa .area span{font-size:9px;padding:2px 6px}
+.mapa .area:hover{background:rgba(217,178,111,.18)}
+.mapa .area.on{border-color:var(--ac);background:rgba(217,178,111,.28);box-shadow:0 0 0 3px rgba(0,0,0,.35)}
+.mini .mapa{width:260px}
+.plantaGrande{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:14px 14px 70px}
+.plantaGrande .mapa{max-height:100%;aspect-ratio:1376/768;height:100%;max-width:100%}
+.plantaGrande .mapa img{height:100%;object-fit:contain}
+.troca{position:absolute;top:12px;left:12px;display:flex;gap:4px;background:rgba(11,17,29,.75);padding:4px;border-radius:999px;z-index:3}
+.troca button{padding:6px 14px;border-radius:999px;font-size:12px;color:var(--sub)}
+.troca button.on{background:var(--ac);color:#111827;font-weight:600}
+.pino{position:absolute;translate:-50% -100%;display:flex;flex-direction:column;align-items:center;cursor:pointer;line-height:1}
+.pino span{background:rgba(17,24,39,.92);border:1px solid var(--ac);color:#fff;font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;white-space:nowrap;transition:transform .2s}
+.pino i{width:2px;height:12px;background:var(--ac)}
+.pino b{width:12px;height:12px;border-radius:50%;background:var(--ac);border:2px solid #fff;margin-top:-1px}
+.pino:hover span{transform:scale(1.08)}
+.pino.on span{background:var(--ac);color:#111827}
+.legPlanta{position:absolute;bottom:62px;right:14px;font-size:11px;color:#9ca3af;background:rgba(0,0,0,.45);padding:4px 8px;border-radius:6px}
+/* vídeo */
+.video{position:absolute;inset:0;background:#000}
+.video video{width:100%;height:100%;object-fit:contain}
+
+/* seletor de cômodos */
+.comodos{display:flex;gap:12px;overflow-x:auto;padding:14px 2px 6px;scrollbar-width:thin}
+.comodo{flex:0 0 auto;text-align:center;font-size:12px;color:var(--sub)}
+.comodo img{display:block;width:96px;height:64px;object-fit:cover;border-radius:8px;border:2px solid transparent;margin-bottom:6px}
+.comodo.on{color:var(--txt)}
+.comodo.on img{border-color:var(--ac)}
+
+/* galeria masonry */
+.galeria{columns:3 200px;column-gap:12px;padding:12px 0}
+.galeria img{width:100%;margin-bottom:12px;border-radius:10px;cursor:zoom-in;display:block;break-inside:avoid;transition:opacity .2s}
+.galeria img:hover{opacity:.85}
+.galeriaWrap{position:absolute;inset:0;overflow-y:auto;padding:0 14px 70px}
+
+/* lightbox */
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:50;display:none;align-items:center;justify-content:center}
+.lb.on{display:flex}
+.lb img{max-width:92vw;max-height:86vh;border-radius:6px}
+.lb .cont{position:absolute;top:18px;left:50%;translate:-50% 0;font-size:14px;color:#d1d5db}
+.lb .acoes{position:absolute;top:10px;right:12px;display:flex;gap:4px}
+.lb .seta{position:absolute;top:50%;translate:0 -50%;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.08)}
+.lb .seta.e{left:16px}.lb .seta.d{right:16px}
+
+/* sidebar */
+.side{flex:0 0 220px;transition:flex-basis .3s}
+.side .caixa{position:sticky;top:24px;background:var(--card);border-radius:14px;padding:18px;overflow:hidden}
+.side.fechada{flex-basis:44px}
+.side.fechada .conteudo{display:none}
+.recolher{width:100%;display:flex;justify-content:flex-end;color:var(--sub);margin:-6px -6px 6px 0}
+.preco{font-size:22px;font-weight:700;color:var(--ac)}
+.rotulo{font-size:12px;color:var(--sub);margin-bottom:2px}
+.specs{margin:14px 0;border:1px dashed var(--line);border-radius:10px;padding:10px;font-size:12px;color:var(--sub);line-height:1.6}
+.btn{display:block;width:100%;text-align:center;padding:10px;border-radius:9px;border:1px solid var(--line);font-size:13px;margin-top:8px}
+.btn:hover{border-color:var(--ac)}
+.btn.forte{background:var(--ac);border-color:var(--ac);color:#111827;font-weight:600}
+.cont-vis{margin-top:14px;font-size:12px;color:var(--sub);text-align:center}
+.aviso{margin-top:10px;font-size:11px;color:#6b7280;text-align:center}
+.toast{position:fixed;bottom:24px;left:50%;translate:-50% 0;background:var(--ac);color:#111827;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s;z-index:60;pointer-events:none}
+.toast.on{opacity:1}
+
+@media (max-width:820px){
+  .app{flex-direction:column}
+  .side,.side.fechada{flex-basis:auto}
+  .side.fechada .conteudo{display:block}
+  .recolher{display:none}
+  .viewer{aspect-ratio:4/5}
+  .barra .nome{font-size:13px}
+  .ib{width:34px;height:34px}
+  .pino span{font-size:9px;padding:3px 6px}
+  .pino i{height:6px}
+  .mapa .area span{font-size:8px;padding:2px 5px}
+  .legPlanta{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="main">
+    <div class="topo"><h1>Casa de Alto Padrão</h1><small>Tour virtual · demonstração</small></div>
+    <div class="modos" id="modos"></div>
+
+    <div class="viewer" id="viewer">
+      <div id="palco"></div>
+      <div class="mini" id="mini"></div>
+      <div class="barra">
+        <button class="ib" id="bPlanta" title="Planta"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h8v9M11 3v5M15 12h6"/></svg></button>
+        <button class="ib" id="bAnt" title="Cômodo anterior"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="nome" id="nome"></div>
+        <button class="ib" id="bProx" title="Próximo cômodo"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+        <button class="ib" id="bVR" title="Modo VR"><svg viewBox="0 0 24 24"><path d="M3 8h18v8h-6l-2-3h-2l-2 3H3z"/><circle cx="7.5" cy="12" r="1.2"/><circle cx="16.5" cy="12" r="1.2"/></svg></button>
+        <button class="ib" id="bFull" title="Tela cheia"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      </div>
+    </div>
+
+    <div class="comodos" id="comodos"></div>
+  </div>
+
+  <aside class="side" id="side">
+    <div class="caixa">
+      <button class="recolher" id="bSide" title="Recolher">⟩</button>
+      <div class="conteudo">
+        <div class="rotulo">Valor</div>
+        <div class="preco">Sob consulta</div>
+        <div class="specs">Área · quartos · suítes · vagas<br><i>(dados do imóvel entram aqui)</i></div>
+        <button class="btn" id="bShare">Compartilhar tour</button>
+        <button class="btn" id="bFotos">Baixar fotos</button>
+        <a class="btn forte" id="bVisita" target="_blank" rel="noopener">Solicitar visita presencial</a>
+        <div class="cont-vis" id="contVis"></div>
+        <div class="aviso">Imóvel ilustrativo criado com IA.</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="lb" id="lb">
+  <div class="cont" id="lbCont"></div>
+  <div class="acoes">
+    <a class="ib" id="lbDown" download title="Baixar"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>
+    <button class="ib" id="lbFechar" title="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <button class="seta e ib" id="lbAnt"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <img id="lbImg" alt="">
+  <button class="seta d ib" id="lbProx"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const CONFIG = { whatsapp: '5519971679159', imovel: 'Casa de Alto Padrão' };
+
+// planta: h = retângulo do cômodo na planta humanizada, p3 = ponto na planta 3D (frações da imagem)
+const COMODOS = [
+  { nome:'Fachada', id:1, planta:{h:[.40,.84,.22,.16],p3:[.42,.86]}, hs:[
+    {x:.63,y:.32,t:'Fachada com brises',d:'Volumes brancos com ripas de madeira e grandes panos de vidro.'},
+    {x:.70,y:.68,t:"Espelho d'água",d:"Lâmina d'água na frente da casa reflete a iluminação à noite."},
+    {x:.16,y:.55,t:'Varanda coberta',d:'Área coberta com estar externo, integrada ao jardim.'}]},
+  { nome:'Sala de Estar', id:2, planta:{h:[.175,.515,.40,.32],p3:[.33,.58]}, hs:[
+    {x:.45,y:.35,t:'Pé-direito duplo',d:'Teto de madeira alto e luminária escultural no centro da sala.'},
+    {x:.32,y:.66,t:'Estar integrado',d:'Sofás em L e mesa de centro em pedra, abertos para o jardim.'},
+    {x:.64,y:.27,t:'Estante iluminada',d:'Nichos com iluminação indireta no mezanino.'}]},
+  { nome:'Cozinha Gourmet', id:3, planta:{h:[.578,.515,.33,.32],p3:[.67,.60]}, hs:[
+    {x:.40,y:.64,t:'Ilha em pedra',d:'Ilha com cuba e banquetas, integrada à sala de jantar.'},
+    {x:.62,y:.43,t:'Escada escultural',d:'Escada de degraus soltos levando ao mezanino.'}]},
+  { nome:'Suíte Master', id:4, planta:{h:[.18,.14,.32,.28],p3:[.40,.27]}, hs:[
+    {x:.42,y:.62,t:'Cama king',d:'Cabeceira em painel de madeira com iluminação indireta.'},
+    {x:.16,y:.62,t:'Varanda privativa',d:'Varanda com guarda-corpo de vidro e vista para o verde.'}]},
+  { nome:'Banheiro da Suíte', id:5, planta:{h:[.50,.14,.18,.28],p3:[.59,.24]}, hs:[
+    {x:.635,y:.72,t:'Banheira de pedra',d:'Banheira esculpida ao lado do jardim de inverno.'},
+    {x:.32,y:.65,t:'Bancada dupla',d:'Bancada em pedra com duas cubas e espelho iluminado.'},
+    {x:.50,y:.45,t:'Box com chuveiro de teto',d:'Box em vidro com chuveiro embutido no forro.'}]},
+  { nome:'Piscina', id:6, planta:{h:[.535,.03,.27,.11],p3:[.70,.13]}, hs:[
+    {x:.20,y:.67,t:'Piscina e deck',d:'Piscina iluminada com deck de madeira e espreguiçadeiras.'},
+    {x:.72,y:.58,t:'Estar integrado',d:'Sala aberta para a área da piscina por portas de vidro.'}]},
+];
+const FOTOS = COMODOS.flatMap(c => ['03','2','37'].map(s => ({ src:`media/c${c.id}_${s}.jpg`, comodo:c.nome })));
+const MODOS = ['360°','Fotos','Vídeo','Plantas'];
+
+let atual = 1, modo = '360°', vr = false;
+const $ = id => document.getElementById(id);
+
+/* ---------- chips e seletor ---------- */
+function desenhaModos(){
+  $('modos').innerHTML = MODOS.map(m => `<button class="chip ${m===modo?'on':''}" data-m="${m}">${m}</button>`).join('');
+  $('modos').querySelectorAll('button').forEach(b => b.onclick = () => { modo = b.dataset.m; render(); });
+}
+function desenhaComodos(){
+  $('comodos').innerHTML = COMODOS.map((c,i) => `<button class="comodo ${i===atual?'on':''}" data-i="${i}"><img src="media/t${c.id}.jpg" alt="">${c.nome}</button>`).join('');
+  $('comodos').querySelectorAll('button').forEach(b => b.onclick = () => irPara(+b.dataset.i));
+  $('comodos').querySelector('.on')?.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
+}
+let tipoPlanta = '3d';
+function mapaHumanizado(){
+  return `<div class="mapa"><img src="media/planta-humanizada.jpg" alt="Planta humanizada">` + COMODOS.map((c,i) => {
+    const [x,y,w,h] = c.planta.h;
+    return `<button class="area ${i===atual?'on':''}" data-i="${i}" title="${c.nome}" style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%"><span>${c.nome}</span></button>`;
+  }).join('') + `</div>`;
+}
+function mapa3D(){
+  return `<div class="mapa"><img src="media/planta-3d.jpg" alt="Planta 3D">` + COMODOS.map((c,i) => {
+    const [x,y] = c.planta.p3;
+    return `<button class="pino ${i===atual?'on':''}" data-i="${i}" style="left:${x*100}%;top:${y*100}%"><span>${c.nome}</span><i></i><b></b></button>`;
+  }).join('') + `</div>`;
+}
+function ligaPlanta(el){ el.querySelectorAll('[data-i]').forEach(r => r.onclick = () => { if(modo==='Plantas') modo='360°'; irPara(+r.dataset.i); }); }
+function montaPlanta(){
+  $('palco').innerHTML = `<div class="plantaGrande">
+      <div class="troca"><button data-t="3d" class="${tipoPlanta==='3d'?'on':''}">Planta 3D</button><button data-t="h" class="${tipoPlanta==='h'?'on':''}">Humanizada</button></div>
+      ${tipoPlanta==='3d' ? mapa3D() : mapaHumanizado()}
+      <div class="legPlanta">Toque num ambiente para entrar no 360° · imagem ilustrativa</div></div>`;
+  $('palco').querySelectorAll('.troca button').forEach(b => b.onclick = () => { tipoPlanta = b.dataset.t; montaPlanta(); });
+  ligaPlanta($('palco').querySelector('.mapa'));
+}
+function irPara(i){ atual = (i + COMODOS.length) % COMODOS.length; render(); }
+
+/* ---------- visualizador 360°: panorama que gira e emenda as pontas ---------- */
+const PANO = { w:1239, h:768, k:1376/1239 };   // k: posição dos pontos (feita na imagem original) -> imagem emendada
+let pan = { x:0, y:0 };
+function montaCena(){
+  const c = COMODOS[atual];
+  const img = `url('media/pano${c.id}.jpg')`;
+  $('palco').innerHTML = `
+    <div class="cena" id="cena"><div class="pano" id="p1" style="background-image:${img}"></div><div id="pontos"></div></div>
+    <div class="olho2"><div class="pano" id="p2" style="background-image:${img}"></div></div>
+    <div class="dica" id="dica">Arraste para girar 360° · toque nos pontos</div>`;
+  const cena = $('cena'), V = $('viewer');
+  const ajusta = () => {
+    const W = vr ? V.clientWidth/2 : V.clientWidth, H = V.clientHeight;
+    let PH = H*1.3; let PW = PH*PANO.w/PANO.h;
+    if (PW < W*1.4) { PW = W*1.4; PH = PW*PANO.h/PANO.w; }
+    Object.assign(pan, { W, H, PW, PH });
+    if (!pan.ok) { pan.x = W/2 - 0.5*PW; pan.y = (H-PH)/2; pan.ok = true; }
+    aplica();
+  };
+  pan.ok = false;
+  $('pontos').innerHTML = c.hs.map((h,k) => `<button class="hs" data-k="${k}" title="${h.t}"></button>`).join('');
+  $('pontos').querySelectorAll('.hs').forEach(b => {
+    b.onpointerdown = e => e.stopPropagation();
+    b.onclick = e => { e.stopPropagation(); abreTip(c.hs[+b.dataset.k], b); };
+  });
+  let ini=null, mexeu=false;
+  cena.onpointerdown = e => { fechaTip(); ini={x:e.clientX,y:e.clientY,px:pan.x,py:pan.y}; mexeu=true; cena.setPointerCapture(e.pointerId); cena.classList.add('arrastando'); $('dica').style.opacity=0; };
+  cena.onpointermove = e => { if(!ini) return; pan.x = ini.px + (e.clientX-ini.x); pan.y = ini.py + (e.clientY-ini.y)*0.6; aplica(); };
+  cena.onpointerup = cena.onpointercancel = () => { ini=null; cena.classList.remove('arrastando'); };
+  cena.onwheel = e => { e.preventDefault(); pan.x -= (e.deltaX||e.deltaY)*0.8; mexeu=true; $('dica').style.opacity=0; aplica(); };
+  // gira devagar sozinho até a pessoa tocar
+  let ult = performance.now(); const p1 = $('p1');
+  const auto = now => { if(!document.body.contains(p1)) return; if(!mexeu && !tipEl){ pan.x -= (now-ult)*0.018; aplica(); } ult = now; requestAnimationFrame(auto); };
+  requestAnimationFrame(auto);
+  ajusta(); window.onresize = () => { pan.ok=false; ajusta(); };
+  document.onfullscreenchange = () => { pan.ok=false; setTimeout(ajusta,60); };
+}
+function aplica(){
+  pan.x = ((pan.x % pan.PW) + pan.PW) % pan.PW - pan.PW;      // gira sem fim
+  pan.y = Math.min(0, Math.max(pan.H-pan.PH, pan.y));
+  for (const [id,dx] of [['p1',0],['p2',-8]]) { const el=$(id); if(!el) continue;
+    el.style.backgroundSize = `${pan.PW}px ${pan.PH}px`;
+    el.style.backgroundPosition = `${pan.x+dx}px ${pan.y}px`; }
+  COMODOS[atual].hs.forEach((h,k) => {
+    const b = $('pontos')?.querySelector(`[data-k="${k}"]`); if(!b) return;
+    let sx = (h.x*PANO.k)*pan.PW + pan.x;
+    while (sx < -40) sx += pan.PW;
+    while (sx > pan.W + 40 && sx - pan.PW > -40) sx -= pan.PW;
+    b.style.left = sx+'px'; b.style.top = (pan.y + h.y*pan.PH)+'px';
+    b.style.display = (sx < -40 || sx > pan.W+40) ? 'none' : '';
+  });
+}
+let tipEl=null;
+function abreTip(h, b){
+  fechaTip(); $('mini').classList.remove('on'); $('bPlanta').classList.remove('on');
+  const r = b.getBoundingClientRect(), v = $('viewer').getBoundingClientRect();
+  tipEl = document.createElement('div'); tipEl.className='tip';
+  tipEl.innerHTML = `<b>${h.t}</b>${h.d}`;
+  let x = r.left - v.left + 24, y = r.top - v.top - 10;
+  if (x + 240 > v.width) x = r.left - v.left - 254;
+  if (y + 120 > v.height - 70) y = v.height - 190;
+  tipEl.style.left = Math.max(8,x)+'px'; tipEl.style.top = Math.max(8,y)+'px';
+  $('viewer').appendChild(tipEl);
+}
+function fechaTip(){ tipEl?.remove(); tipEl=null; }
+
+/* ---------- galeria + lightbox ---------- */
+function montaGaleria(){
+  $('palco').innerHTML = `<div class="galeriaWrap"><div class="galeria">${FOTOS.map((f,i)=>`<img src="${f.src}" data-i="${i}" alt="${f.comodo}" loading="lazy">`).join('')}</div></div>`;
+  $('palco').querySelectorAll('img').forEach(im => im.onclick = () => abreLB(+im.dataset.i));
+}
+let lbI = 0;
+function abreLB(i){ lbI = (i+FOTOS.length)%FOTOS.length; const f=FOTOS[lbI];
+  $('lbImg').src=f.src; $('lbCont').textContent=`${lbI+1}/${FOTOS.length} · ${f.comodo}`;
+  $('lbDown').href=f.src; $('lbDown').setAttribute('download',`foto-${lbI+1}.jpg`); $('lb').classList.add('on'); }
+$('lbAnt').onclick = () => abreLB(lbI-1); $('lbProx').onclick = () => abreLB(lbI+1);
+$('lbFechar').onclick = () => $('lb').classList.remove('on');
+document.addEventListener('keydown', e => {
+  if ($('lb').classList.contains('on')) { if(e.key==='ArrowLeft') abreLB(lbI-1); if(e.key==='ArrowRight') abreLB(lbI+1); if(e.key==='Escape') $('lb').classList.remove('on'); }
+  else if (modo!=='Fotos') { if(e.key==='ArrowLeft') irPara(atual-1); if(e.key==='ArrowRight') irPara(atual+1); }
+});
+
+/* ---------- render ---------- */
+function render(){
+  fechaTip(); $('mini').classList.remove('on'); $('bPlanta').classList.remove('on');
+  $('viewer').classList.toggle('vr', vr && modo==='360°');
+  $('bVR').classList.toggle('on', vr);
+  const c = COMODOS[atual];
+  $('nome').textContent = modo==='Fotos' ? `Galeria · ${FOTOS.length} fotos` : modo==='Plantas' ? 'Plantas da casa' : c.nome;
+  if (modo==='360°') montaCena();
+  else if (modo==='Fotos') montaGaleria();
+  else if (modo==='Vídeo') $('palco').innerHTML = `<div class="video"><video src="media/v${c.id}.mp4" autoplay muted loop playsinline controls></video></div>`;
+  else montaPlanta();
+  desenhaModos(); desenhaComodos();
+}
+
+/* ---------- barra ---------- */
+$('bAnt').onclick = () => irPara(atual-1);
+$('bProx').onclick = () => irPara(atual+1);
+$('bPlanta').onclick = () => { fechaTip(); const m=$('mini'); const on=!m.classList.contains('on');
+  m.innerHTML = mapaHumanizado() + '<small>Planta humanizada ilustrativa</small>'; ligaPlanta(m); m.classList.toggle('on',on); $('bPlanta').classList.toggle('on',on); };
+$('bFull').onclick = () => document.fullscreenElement ? document.exitFullscreen() : $('viewer').requestFullscreen?.();
+$('bVR').onclick = () => { vr=!vr; if(vr && modo!=='360°') modo='360°'; render(); toast(vr ? 'Modo VR: coloque o celular no óculos' : 'Modo VR desligado'); };
+
+/* ---------- sidebar ---------- */
+$('bSide').onclick = () => { $('side').classList.toggle('fechada'); $('bSide').textContent = $('side').classList.contains('fechada') ? '⟨' : '⟩'; setTimeout(()=>{pan.ok=false; if(modo==='360°') montaCena();},320); };
+$('bShare').onclick = async () => {
+  const dados = { title: CONFIG.imovel, text: 'Veja o tour virtual deste imóvel', url: location.href };
+  try { if (navigator.share) await navigator.share(dados); else { await navigator.clipboard.writeText(location.href); toast('Link do tour copiado'); } } catch(e){}
+};
+$('bFotos').onclick = () => { modo='Fotos'; render(); toast('Abra uma foto e toque em baixar'); };
+$('bVisita').href = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent('Olá! Vi o tour virtual da '+CONFIG.imovel+' e quero agendar uma visita presencial.')}`;
+
+// contador real de visualizações deste aparelho (num portal, viria do servidor)
+let vis = 1; try { vis = (+localStorage.getItem('tourVis')||0) + 1; localStorage.setItem('tourVis', vis); } catch(e){}
+$('contVis').textContent = `Tour visualizado ${vis} ${vis===1?'vez':'vezes'}`;
+
+let tt; function toast(m){ $('toast').textContent=m; $('toast').classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>$('toast').classList.remove('on'),2200); }
+render();
+</script>
+</body>
+</html>

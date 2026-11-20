@@ -78,6 +78,22 @@ a{color:inherit;text-decoration:none}
 .pino b{width:12px;height:12px;border-radius:50%;background:var(--ac);border:2px solid #fff;margin-top:-1px}
 .pino:hover span{transform:scale(1.08)}
 .pino.on span{background:var(--ac);color:#111827}
+.giro{position:absolute;inset:0;display:grid;place-items:center;perspective:1500px;touch-action:none;cursor:grab;overflow:hidden}
+.giro:active{cursor:grabbing}
+.plano{width:min(78%,calc((100% - 120px)*1.79));transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.plano.mexendo{transition:none}
+.plano .mapa{aspect-ratio:auto;height:auto;box-shadow:0 30px 60px rgba(0,0,0,.65),0 0 0 6px #1f2633;border-radius:10px}
+.plano .mapa img{height:auto}
+.reset{position:absolute;top:10px;right:12px;background:rgba(11,17,29,.75);z-index:3}
+.giro3d{touch-action:pan-y;cursor:grab;user-select:none}
+.giro3d .vista{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .45s;pointer-events:none}
+.giro3d .vista:first-child{position:relative}
+.giro3d .vista.on{opacity:1}
+.giro3d .camada{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .3s}
+.giro3d .camada.on{opacity:1}
+.giro3d .camada.on .pino{pointer-events:auto}
+.setas3d{position:absolute;left:50%;bottom:8px;translate:-50% 0;display:flex;align-items:center;gap:6px;background:rgba(11,17,29,.8);border-radius:999px;padding:3px 6px;line-height:1;z-index:2}
+.setas3d span{font-size:12px;color:#e5e7eb;min-width:92px;text-align:center}
 .legPlanta{position:absolute;bottom:62px;right:14px;font-size:11px;color:#9ca3af;background:rgba(0,0,0,.45);padding:4px 8px;border-radius:6px}
 /* vídeo */
 .video{position:absolute;inset:0;background:#000}
@@ -134,6 +150,7 @@ a{color:inherit;text-decoration:none}
   .pino i{height:6px}
   .mapa .area span{font-size:8px;padding:2px 5px}
   .legPlanta{display:none}
+  .plano{width:96%}
 }
 </style>
 </head>
@@ -191,27 +208,27 @@ a{color:inherit;text-decoration:none}
 <script>
 const CONFIG = { whatsapp: '5519971679159', imovel: 'Casa de Alto Padrão' };
 
-// planta: h = retângulo do cômodo na planta humanizada, p3 = ponto na planta 3D (frações da imagem)
+// planta: h = retângulo do cômodo na planta humanizada, p3 = ponto do cômodo em cada uma das 4 vistas da planta 3D (0°, 90°, 180°, 270°)
 const COMODOS = [
-  { nome:'Fachada', id:1, planta:{h:[.40,.84,.22,.16],p3:[.42,.86]}, hs:[
+  { nome:'Fachada', id:1, planta:{h:[.40,.84,.22,.16],p3:[[.42,.86],[.12,.50],[.54,.18],[.875,.56]]}, hs:[
     {x:.63,y:.32,t:'Fachada com brises',d:'Volumes brancos com ripas de madeira e grandes panos de vidro.'},
     {x:.70,y:.68,t:"Espelho d'água",d:"Lâmina d'água na frente da casa reflete a iluminação à noite."},
     {x:.16,y:.55,t:'Varanda coberta',d:'Área coberta com estar externo, integrada ao jardim.'}]},
-  { nome:'Sala de Estar', id:2, planta:{h:[.175,.515,.40,.32],p3:[.33,.58]}, hs:[
+  { nome:'Sala de Estar', id:2, planta:{h:[.175,.515,.40,.32],p3:[[.33,.58],[.36,.30],[.67,.30],[.61,.67]]}, hs:[
     {x:.45,y:.35,t:'Pé-direito duplo',d:'Teto de madeira alto e luminária escultural no centro da sala.'},
     {x:.32,y:.66,t:'Estar integrado',d:'Sofás em L e mesa de centro em pedra, abertos para o jardim.'},
     {x:.64,y:.27,t:'Estante iluminada',d:'Nichos com iluminação indireta no mezanino.'}]},
-  { nome:'Cozinha Gourmet', id:3, planta:{h:[.578,.515,.33,.32],p3:[.67,.60]}, hs:[
+  { nome:'Cozinha Gourmet', id:3, planta:{h:[.578,.515,.33,.32],p3:[[.67,.60],[.33,.67],[.35,.31],[.70,.33]]}, hs:[
     {x:.40,y:.64,t:'Ilha em pedra',d:'Ilha com cuba e banquetas, integrada à sala de jantar.'},
     {x:.62,y:.43,t:'Escada escultural',d:'Escada de degraus soltos levando ao mezanino.'}]},
-  { nome:'Suíte Master', id:4, planta:{h:[.18,.14,.32,.28],p3:[.40,.27]}, hs:[
+  { nome:'Suíte Master', id:4, planta:{h:[.18,.14,.32,.28],p3:[[.40,.27],[.60,.29],[.70,.59],[.31,.52]]}, hs:[
     {x:.42,y:.62,t:'Cama king',d:'Cabeceira em painel de madeira com iluminação indireta.'},
     {x:.16,y:.62,t:'Varanda privativa',d:'Varanda com guarda-corpo de vidro e vista para o verde.'}]},
-  { nome:'Banheiro da Suíte', id:5, planta:{h:[.50,.14,.18,.28],p3:[.59,.24]}, hs:[
+  { nome:'Banheiro da Suíte', id:5, planta:{h:[.50,.14,.18,.28],p3:[[.59,.24],[.61,.46],[.453,.60],[.41,.22]]}, hs:[
     {x:.635,y:.72,t:'Banheira de pedra',d:'Banheira esculpida ao lado do jardim de inverno.'},
     {x:.32,y:.65,t:'Bancada dupla',d:'Bancada em pedra com duas cubas e espelho iluminado.'},
     {x:.50,y:.45,t:'Box com chuveiro de teto',d:'Box em vidro com chuveiro embutido no forro.'}]},
-  { nome:'Piscina', id:6, planta:{h:[.535,.03,.27,.11],p3:[.70,.13]}, hs:[
+  { nome:'Piscina', id:6, planta:{h:[.535,.03,.27,.11],p3:[[.70,.13],[.89,.43],[.57,.89],[.16,.25]]}, hs:[
     {x:.20,y:.67,t:'Piscina e deck',d:'Piscina iluminada com deck de madeira e espreguiçadeiras.'},
     {x:.72,y:.58,t:'Estar integrado',d:'Sala aberta para a área da piscina por portas de vidro.'}]},
 ];
@@ -238,20 +255,76 @@ function mapaHumanizado(){
     return `<button class="area ${i===atual?'on':''}" data-i="${i}" title="${c.nome}" style="left:${x*100}%;top:${y*100}%;width:${w*100}%;height:${h*100}%"><span>${c.nome}</span></button>`;
   }).join('') + `</div>`;
 }
+let vista3d = 0;
 function mapa3D(){
-  return `<div class="mapa"><img src="media/planta-3d.jpg" alt="Planta 3D">` + COMODOS.map((c,i) => {
-    const [x,y] = c.planta.p3;
-    return `<button class="pino ${i===atual?'on':''}" data-i="${i}" style="left:${x*100}%;top:${y*100}%"><span>${c.nome}</span><i></i><b></b></button>`;
-  }).join('') + `</div>`;
+  return `<div class="mapa giro3d" id="giro3d">` +
+    [0,1,2,3].map(v => `<img class="vista ${v===vista3d?'on':''}" data-v="${v}" src="media/p3d-${v}.jpg" alt="Planta 3D, vista ${v+1}" draggable="false">`).join('') +
+    [0,1,2,3].map(v => `<div class="camada ${v===vista3d?'on':''}" data-v="${v}">` + COMODOS.map((c,i) => {
+      const [x,y] = c.planta.p3[v];
+      return `<button class="pino ${i===atual?'on':''}" data-i="${i}" style="left:${x*100}%;top:${y*100}%"><span>${c.nome}</span><i></i><b></b></button>`;
+    }).join('') + `</div>`).join('') +
+    `<div class="setas3d"><button class="ib" data-d="-1" title="Girar para a esquerda"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/></svg></button><span id="ind3d"></span><button class="ib" data-d="1" title="Girar para a direita"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4"/></svg></button></div></div>`;
+}
+/* planta 3D: arrastar para os lados troca entre as 4 vistas, como uma maquete girando na mesa */
+function giraVistas(el){
+  const mostra = v => { vista3d = (v+4)%4;
+    el.querySelectorAll('.vista,.camada').forEach(x => x.classList.toggle('on', +x.dataset.v===vista3d));
+    $('ind3d').textContent = ['Frente','Lado direito','Fundos','Lado esquerdo'][vista3d]; };
+  mostra(vista3d);
+  let ini = null, andou = 0, mexeu = false;
+  el.onpointerdown = e => { if (e.target.closest('.setas3d')) return; ini = { x:e.clientX, v:vista3d }; andou = 0; mexeu = true; el.setPointerCapture(e.pointerId); };
+  el.onpointermove = e => { if (!ini) return; const dx = e.clientX - ini.x; andou = Math.max(andou, Math.abs(dx));
+    const passo = Math.round(-dx / 110); if ((ini.v + passo + 4) % 4 !== vista3d) mostra(ini.v + passo); };
+  el.onpointerup = el.onpointercancel = () => { ini = null; };
+  el.addEventListener('click', e => { if (andou > 6) { e.stopPropagation(); e.preventDefault(); andou = 0; } }, true);
+  el.querySelectorAll('.setas3d [data-d]').forEach(b => b.onclick = e => { e.stopPropagation(); mexeu = true; mostra(vista3d + +b.dataset.d); });
+  // gira sozinha a cada 3,5 s até a primeira interação
+  const t = setInterval(() => { if (!document.body.contains(el) || mexeu) return clearInterval(t); mostra(vista3d+1); }, 3500);
 }
 function ligaPlanta(el){ el.querySelectorAll('[data-i]').forEach(r => r.onclick = () => { if(modo==='Plantas') modo='360°'; irPara(+r.dataset.i); }); }
 function montaPlanta(){
+  const h = tipoPlanta==='h';
   $('palco').innerHTML = `<div class="plantaGrande">
-      <div class="troca"><button data-t="3d" class="${tipoPlanta==='3d'?'on':''}">Planta 3D</button><button data-t="h" class="${tipoPlanta==='h'?'on':''}">Humanizada</button></div>
-      ${tipoPlanta==='3d' ? mapa3D() : mapaHumanizado()}
-      <div class="legPlanta">Toque num ambiente para entrar no 360° · imagem ilustrativa</div></div>`;
+      <div class="troca"><button data-t="3d" class="${!h?'on':''}">Planta 3D</button><button data-t="h" class="${h?'on':''}">Humanizada</button></div>
+      ${h ? `<div class="giro" id="giro"><div class="plano" id="plano">${mapaHumanizado()}</div></div>` : mapa3D()}
+      ${h ? '<button class="ib reset" id="bReset" title="Voltar à vista inicial"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4"/></svg></button>' : ''}
+      <div class="legPlanta">${h ? 'Arraste para girar e inclinar · role ou pinça para zoom · toque num ambiente' : 'Arraste para os lados para girar a maquete · toque num ambiente'} · imagem ilustrativa</div></div>`;
   $('palco').querySelectorAll('.troca button').forEach(b => b.onclick = () => { tipoPlanta = b.dataset.t; montaPlanta(); });
   ligaPlanta($('palco').querySelector('.mapa'));
+  if (h) giraPlano($('giro'), $('plano')); else giraVistas($('giro3d'));
+}
+
+/* planta humanizada como maquete: arrastar gira (eixo vertical) e inclina; roda/pinça dá zoom */
+let vistaPlano = null;
+function giraPlano(area, plano){
+  const ini = { rz:-18, rx:48, s:1 };
+  const v = vistaPlano || (vistaPlano = { ...ini });
+  let mexeu = !!vistaPlano.tocou, toques = new Map(), arrasto = null, pinca = null, andou = 0;
+  const aplica = () => { plano.style.transform = `rotateX(${v.rx}deg) rotateZ(${v.rz}deg) scale(${v.s})`; };
+  aplica();
+  area.onpointerdown = e => {
+    area.setPointerCapture(e.pointerId); toques.set(e.pointerId, e); andou = 0; mexeu = v.tocou = true;
+    plano.classList.add('mexendo');
+    if (toques.size === 1) arrasto = { x:e.clientX, y:e.clientY, rz:v.rz, rx:v.rx };
+    if (toques.size === 2) { const [a,b] = [...toques.values()]; pinca = { d:Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY), s:v.s }; arrasto = null; }
+  };
+  area.onpointermove = e => {
+    if (!toques.has(e.pointerId)) return; toques.set(e.pointerId, e);
+    if (pinca && toques.size === 2) { const [a,b] = [...toques.values()]; v.s = Math.min(2.2, Math.max(.6, pinca.s * Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY) / pinca.d)); andou = 99; }
+    else if (arrasto) { const dx = e.clientX-arrasto.x, dy = e.clientY-arrasto.y; andou = Math.max(andou, Math.abs(dx)+Math.abs(dy));
+      v.rz = arrasto.rz - dx*0.35; v.rx = Math.min(70, Math.max(0, arrasto.rx - dy*0.3)); }
+    aplica();
+  };
+  const solta = e => { toques.delete(e.pointerId); if (toques.size < 2) pinca = null; if (!toques.size) { arrasto = null; plano.classList.remove('mexendo'); } };
+  area.onpointerup = area.onpointercancel = solta;
+  // clique em ambiente só vale se não arrastou
+  area.addEventListener('click', e => { if (andou > 6) { e.stopPropagation(); e.preventDefault(); } }, true);
+  area.onwheel = e => { e.preventDefault(); v.s = Math.min(2.2, Math.max(.6, v.s * (e.deltaY < 0 ? 1.08 : 0.93))); mexeu = v.tocou = true; aplica(); };
+  $('bReset').onclick = () => { Object.assign(v, ini, { tocou:true }); plano.classList.remove('mexendo'); aplica(); };
+  // gira devagar sozinha até a primeira interação
+  let ult = performance.now();
+  const auto = t => { if (!document.body.contains(plano)) return; if (!mexeu) { v.rz -= (t-ult)*0.006; aplica(); } ult = t; requestAnimationFrame(auto); };
+  requestAnimationFrame(auto);
 }
 function irPara(i){ atual = (i + COMODOS.length) % COMODOS.length; render(); }
 

@@ -51,6 +51,10 @@ a{color:inherit;text-decoration:none}
 .ib{width:38px;height:38px;border-radius:9px;display:grid;place-items:center}
 .ib:hover,.ib.on{background:rgba(255,255,255,.1)}
 .ib.on{color:var(--ac)}
+#bSom .corta{stroke:#9ca3af}
+#bSom.on .corta{display:none}
+#bSom.on svg{animation:batida 1.6s ease-in-out infinite}
+@keyframes batida{50%{transform:scale(1.12)}}
 .ib svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .mini{position:absolute;left:12px;bottom:68px;z-index:6;background:rgba(11,17,29,.92);border:1px solid var(--line);border-radius:12px;padding:10px;display:none}
 .mini.on{display:block}
@@ -168,6 +172,7 @@ a{color:inherit;text-decoration:none}
         <button class="ib" id="bAnt" title="Cômodo anterior"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
         <div class="nome" id="nome"></div>
         <button class="ib" id="bProx" title="Próximo cômodo"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+        <button class="ib" id="bSom" title="Trilha sonora" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/><path class="corta" d="M3 3l18 18"/></svg></button>
         <button class="ib" id="bVR" title="Modo VR"><svg viewBox="0 0 24 24"><path d="M3 8h18v8h-6l-2-3h-2l-2 3H3z"/><circle cx="7.5" cy="12" r="1.2"/><circle cx="16.5" cy="12" r="1.2"/></svg></button>
         <button class="ib" id="bFull" title="Tela cheia"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       </div>
@@ -422,6 +427,7 @@ function render(){
   else if (modo==='Vídeo') $('palco').innerHTML = `<div class="video"><video src="media/v${c.id}.mp4" autoplay muted loop playsinline controls></video></div>`;
   else montaPlanta();
   desenhaModos(); desenhaComodos();
+  if (typeof SOM !== "undefined") atualizaSom();
 }
 
 /* ---------- barra ---------- */
@@ -445,6 +451,35 @@ $('bVisita').href = `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(
 let vis = 1; try { vis = (+localStorage.getItem('tourVis')||0) + 1; localStorage.setItem('tourVis', vis); } catch(e){}
 $('contVis').textContent = `Tour visualizado ${vis} ${vis===1?'vez':'vezes'}`;
 
+
+/* ---------- trilha sonora: começa desligada; o ♪ liga com fade; pausa no modo Vídeo e fora da aba ---------- */
+const SOM = { ctx:null, gain:null, buf:null, fonte:null, ligado:false, vol:0.35 };
+async function preparaSom(){
+  if (SOM.ctx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  SOM.ctx = new AC(); SOM.gain = SOM.ctx.createGain(); SOM.gain.gain.value = 0; SOM.gain.connect(SOM.ctx.destination);
+  const dados = await (await fetch('media/trilha.mp3')).arrayBuffer();
+  SOM.buf = await new Promise((ok, erro) => SOM.ctx.decodeAudioData(dados, ok, erro));
+  SOM.fonte = SOM.ctx.createBufferSource(); SOM.fonte.buffer = SOM.buf; SOM.fonte.loop = true;   // loop sem emenda
+  SOM.fonte.connect(SOM.gain); SOM.fonte.start();
+}
+function rampa(alvo, seg){ const g = SOM.gain.gain, t = SOM.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(alvo, t + seg); }
+function deveTocar(){ return SOM.ligado && modo !== 'Vídeo' && !document.hidden; }
+let somTimer;
+function atualizaSom(){
+  if (!SOM.ctx) return;
+  clearTimeout(somTimer);
+  if (deveTocar()) { SOM.ctx.resume(); rampa(SOM.vol, 1.5); }
+  else { rampa(0, 0.6); somTimer = setTimeout(() => { if (!deveTocar()) SOM.ctx.suspend(); }, 700); }
+}
+$('bSom').onclick = async () => {
+  SOM.ligado = !SOM.ligado;
+  $('bSom').classList.toggle('on', SOM.ligado); $('bSom').setAttribute('aria-pressed', SOM.ligado);
+  if (SOM.ligado) { try { await preparaSom(); } catch(e) { SOM.ligado = false; $('bSom').classList.remove('on'); toast('Não foi possível tocar a trilha'); return; } }
+  atualizaSom();
+  if (SOM.ligado && modo === 'Vídeo') toast('A trilha volta quando você sair do vídeo');
+};
+document.addEventListener('visibilitychange', atualizaSom);
 let tt; function toast(m){ $('toast').textContent=m; $('toast').classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>$('toast').classList.remove('on'),2200); }
 render();
 </script>
